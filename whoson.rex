@@ -18,6 +18,7 @@
   |                                                            |
   |            option: B - ISPF Browse results                 |
   |                    V - ISPF View results                   |
+  |                    Q - Place results in the TSO Stack      |
   |                    null - REXX say                         |
   |                    ? - display help info                   |
   |                                                            |
@@ -41,6 +42,7 @@
   | Author:    Lionel B. Dyck                                  |
   |                                                            |
   | History:  (most recent on top)                             |
+  |            2025/05/26 LBD - Add Q option                   |
   |            2024/11/21 LBD - Change LU rc check for > 4     |
   |            2024/07/17 LBD - For zOSMF/Zowe check proc for  |
   |                             IZU in addition to lowercase   |
@@ -208,6 +210,12 @@
   end
   if option = 'B' then opt = 'Browse'
   if option = 'V' then opt = 'View'
+  if option = 'Q' then do
+     do i = 1 to r.0
+        queue r.i
+        end
+     exit 0
+     end
 
 Do_StemEdit:
   call stemedit opt,'r.'
@@ -323,18 +331,19 @@ Do_Help:
   r.5 = ' option may be: null    display on terminal'
   r.6 = '                B       use ISPF Browse'
   r.7 = '                V       use ISPF View'
-  r.8 = '                ?       display this help information'
-  r.9 = ' '
-  r.10 = ' \ is a required separator (in case of a null option)'
-  r.11 = ' '
-  r.12 = ' prefix is a TSO User ID prefix to limit the report.'
-  r.13 = '        e.g. SPL'
-  r.14 = ' filter is a string to find in the userid.'
-  r.15 = '        e.g. *L or L*'
-  r.16 = ' '
-  r.17 = 'Dependencies:   SDSF REXX'
-  r.18 = '                STEMEDIT'
-  r.0 = 18
+  r.8 = '                Q       queue results in the TSO Stack'
+  r.9 = '                ?       display this help information'
+  r.10 = ' '
+  r.11 = ' \ is a required separator (in case of a null option)'
+  r.12 = ' '
+  r.13 = ' prefix is a TSO User ID prefix to limit the report.'
+  r.14 = '        e.g. SPL'
+  r.15 = ' filter is a string to find in the userid.'
+  r.16 = '        e.g. *L or L*'
+  r.17 = ' '
+  r.18 = 'Dependencies:   SDSF REXX'
+  r.19 = '                STEMEDIT'
+  r.0 = 19
 
   opt =  'Browse'
   if sysvar('sysispf') = 'ACTIVE'

@@ -9,6 +9,9 @@ Will also report on zOSMF users (which includes Zowe Explorer users).
  - only zOSMF users who use files or JES servics that start a TSO addres
 space can be detected (step starts with IZU or procstep has lowercase).
 
+As a subroutine with the Q option, the results will be placed in the
+TSO stack where a REXX PULL can be used to access it.
+
 ### Also report on any other address spaces
  - find *custom* and follow instructions
  - looks for the `ICH70001I` message in the JESMSGLG to report on the user
