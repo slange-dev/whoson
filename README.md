@@ -31,7 +31,6 @@ IBM-1047 (`chtag -tc 1047`).
 ## Dependencies:
 
    * SDSF REXX
-   * STEMEDIT   -- Not required when running under the z/OS Unix shell
    * RACF LU command
 
 ### Notes

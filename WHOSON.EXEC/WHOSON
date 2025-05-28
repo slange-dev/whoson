@@ -28,7 +28,6 @@
   |                     e.g. *L or L*                          |
   |                                                            |
   | Dependencies:  SDSF REXX                                   |
-  |                STEMEDIT for Browse/View                    |
   |                RACF LU                                     |
   |                                                            |
   | Customizations:  1. Change RACFLU variable from 1 to 0     |
@@ -42,6 +41,7 @@
   | Author:    Lionel B. Dyck                                  |
   |                                                            |
   | History:  (most recent on top)                             |
+  |            2025/05/28 LBD - Remove STEMEDIT dependency     |
   |            2025/05/26 LBD - Add Q option                   |
   |            2024/11/21 LBD - Change LU rc check for > 4     |
   |            2024/07/17 LBD - For zOSMF/Zowe check proc for  |
@@ -217,9 +217,19 @@
      exit 0
      end
 
-Do_StemEdit:
-  call stemedit opt,'r.'
-  Exit 0
+View_Stem:
+  Address TSO
+  whosdd = 'whdd'random(9999)
+  'Alloc f('whosdd') new spa(5,5) tr' ,
+    'recfm(f b) lrecl(80) blksize(0)'
+  'Execio * diskw' whosdd '(finis stem r.'
+  Address ISPExec
+  'lminit dataid(whosddb) ddname('whosdd')'
+  opt 'dataid('whosddb')'
+  'lmfree dataid('whosddb')'
+  Address TSO
+  'Free f('whosdd')'
+Exit 0
 
 Do_TSO:
   /* ------------------ *
@@ -342,13 +352,12 @@ Do_Help:
   r.16 = '        e.g. *L or L*'
   r.17 = ' '
   r.18 = 'Dependencies:   SDSF REXX'
-  r.19 = '                STEMEDIT'
-  r.0 = 19
+  r.0 = 18
 
   opt =  'Browse'
   if sysvar('sysispf') = 'ACTIVE'
   then if sysvar('sysenv') = 'FORE'
-  then call do_stemedit
+  then call view_stem
   do i = 1 to r.0
     say r.i
   end
