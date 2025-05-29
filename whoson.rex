@@ -16,9 +16,9 @@
   |                                                            |
   | Syntax:    %whoson option \ prefix-or-filter               |
   |                                                            |
-  |            option: B - ISPF Browse results                 |
-  |                    V - ISPF View results                   |
-  |                    Q - Place results in the TSO Stack      |
+  |            option: B - ISPF Browse results *               |
+  |                    V - ISPF View results *                 |
+  |                    Q - Place results in the TSO Stack *    |
   |                    null - REXX say                         |
   |                    ? - display help info                   |
   |                                                            |
@@ -27,8 +27,10 @@
   |            filter - any chars within a userid              |
   |                     e.g. *L or L*                          |
   |                                                            |
+  |            * - if running under the shell will be converted|
+  |                to using the less shell command             |
+  |                                                            |
   | Dependencies:  SDSF REXX                                   |
-  |                STEMEDIT for Browse/View                    |
   |                RACF LU                                     |
   |                                                            |
   | Customizations:  1. Change RACFLU variable from 1 to 0     |
@@ -42,6 +44,8 @@
   | Author:    Lionel B. Dyck                                  |
   |                                                            |
   | History:  (most recent on top)                             |
+  |            2025/05/29 LBD - Check for SHELL and use less   |
+  |            2025/05/28 LBD - Remove STEMEDIT dependency     |
   |            2025/05/26 LBD - Add Q option                   |
   |            2024/11/21 LBD - Change LU rc check for > 4     |
   |            2024/07/17 LBD - For zOSMF/Zowe check proc for  |
@@ -158,30 +162,30 @@
     users = sortstr(users.lpar)
     c = c + 1
     r.c = 'System:  ' left(lpar,8) 'Users:' words(users) ,
-           '   z/OS:' lpar.lpar
+      '   z/OS:' lpar.lpar
     do iu = 1 to words(users)
       c = c + 1
       uid = word(users,iu)
       Select
-      When right(uid,1) = '>'
-      then do
-        sshflag = '(ssh)'
-        name = subword(users.uid,1)
-        tuid = left(uid,length(uid)-1)
-      end
-      When right(uid,1) = '*'
-      then do
-        sshflag = '(zOSMF)'
-        name = subword(users.uid,1)
-        tuid = left(uid,length(uid)-1)
-      end
-      Otherwise do
-        sshflag = null
-        tuid = uid
-      end
+        When right(uid,1) = '>'
+        then do
+          sshflag = '(ssh)'
+          name = subword(users.uid,1)
+          tuid = left(uid,length(uid)-1)
+        end
+        When right(uid,1) = '*'
+        then do
+          sshflag = '(zOSMF)'
+          name = subword(users.uid,1)
+          tuid = left(uid,length(uid)-1)
+        end
+        Otherwise do
+          sshflag = null
+          tuid = uid
+        end
       end
       if pos('.',tuid) > 0
-         then parse value tuid with tuid'.' .
+      then parse value tuid with tuid'.' .
       r.c = left(tuid,9) users.uid  left(users.uid.dt,20) sshflag
     end
     c = c + 1
@@ -191,13 +195,13 @@
   r.0 = c
   len = 0
   do i = 1 to r.0
-     if length(r.i) > len then len = length(r.i)
-     end
+    if length(r.i) > len then len = length(r.i)
+  end
   dash = copies('-',len)
   do i = 1 to words(dash_line)
-     rl = word(dash_line,i)
-     r.rl = dash
-     end
+    rl = word(dash_line,i)
+    r.rl = dash
+  end
 
   /* -------------------------- *
   | Report out based on option |
@@ -208,17 +212,45 @@
     end
     exit 0
   end
+  if address() = 'SH' then option = '*'
   if option = 'B' then opt = 'Browse'
   if option = 'V' then opt = 'View'
   if option = 'Q' then do
-     do i = 1 to r.0
-        queue r.i
-        end
-     exit 0
-     end
+    do i = 1 to r.0
+      queue r.i
+    end
+    exit 0
+  end
 
-Do_StemEdit:
-  call stemedit opt,'r.'
+View_Stem:
+  if option = '*' then do
+    call syscalls 'ON'
+    address 'SH'
+    path = '/tmp/'userid()'.whos'
+    address syscall
+    'stat (path) s.'
+    if s.0 > 0 then
+    address 'SH' 'rm' path
+    'open' path O_rdwr+0+O_creat+O_trunc 600
+    fd = retval
+    Address mvs 'execio * diskw' fd '(finis stem r.'
+    address 'SH'
+    'less' path
+    'rm' path
+  end
+  else do
+    Address TSO
+    whosdd = 'whdd'random(9999)
+    'Alloc f('whosdd') new spa(5,5) tr' ,
+      'recfm(f b) lrecl(80) blksize(0)'
+    'Execio * diskw' whosdd '(finis stem r.'
+    Address ISPExec
+    'lminit dataid(whosddb) ddname('whosdd')'
+    opt 'dataid('whosddb')'
+    'lmfree dataid('whosddb')'
+    Address TSO
+    'Free f('whosdd')'
+  end
   Exit 0
 
 Do_TSO:
@@ -237,9 +269,9 @@ Do_TSO:
     lpar = sysname.i
     user = jname.i
     if zosmf_chk(procs.i) /= null then do
-       user = user'*'
-       zosmf_users = zosmf_users + 1
-       end
+      user = user'*'
+      zosmf_users = zosmf_users + 1
+    end
     else tso_users = tso_users + 1
     if wordpos(lpar,lpars) = 0
     then lpars = lpars lpar
@@ -293,18 +325,18 @@ Do_Other:
   * ---------------------------------------------------- */
   if strip(other) = null then return
   do ispec = 1 to words(other)
-  /* -------------- *
-   | Define filters |
-   * -------------- */
+    /* -------------- *
+    | Define filters |
+    * -------------- */
     isfsysname = ''
     isfowner = "*"
     isfdest = ' '
     isffilter = null
     isfprefix =  word(other,ispec)
     Address SDSF "ISFEXEC da"
-  /* --------------------------------------------------- *
-   | Now get the information on the other address spaces |
-   * --------------------------------------------------- */
+    /* --------------------------------------------------- *
+    | Now get the information on the other address spaces |
+    * --------------------------------------------------- */
     do i = 1 to jname.0
       lpar = sysname.i
       user = jname.i
@@ -333,22 +365,29 @@ Do_Help:
   r.7 = '                V       use ISPF View'
   r.8 = '                Q       queue results in the TSO Stack'
   r.9 = '                ?       display this help information'
-  r.10 = ' '
-  r.11 = ' \ is a required separator (in case of a null option)'
+  r.10 = '    If running under the shell then any non-blank will'
+  r.11 = '    use less to display the results.'
   r.12 = ' '
-  r.13 = ' prefix is a TSO User ID prefix to limit the report.'
-  r.14 = '        e.g. SPL'
-  r.15 = ' filter is a string to find in the userid.'
-  r.16 = '        e.g. *L or L*'
-  r.17 = ' '
-  r.18 = 'Dependencies:   SDSF REXX'
-  r.19 = '                STEMEDIT'
-  r.0 = 19
+  r.13 = ' \ is a required separator (in case of a null option)'
+  r.14 = ' '
+  r.15 = ' prefix is a TSO User ID prefix to limit the report.'
+  r.16 = '        e.g. SPL'
+  r.17 = ' filter is a string to find in the userid.'
+  r.18 = '        e.g. *L or L*'
+  r.19 = ' '
+  r.20 = 'Dependencies:   SDSF REXX'
+  r.21 = '                RACF LU authority'
+  r.22 = '                less (shell command)'
+  r.0 = 22
 
+  if address() = 'SH' then do
+     option = '*'
+     call view_stem
+     end
   opt =  'Browse'
   if sysvar('sysispf') = 'ACTIVE'
   then if sysvar('sysenv') = 'FORE'
-  then call do_stemedit
+  then call view_stem
   do i = 1 to r.0
     say r.i
   end
@@ -363,7 +402,7 @@ Get_User_Name:
   then  tuid = left(uid,length(uid)-1)
   else tuid = uid
   if pos('.',uid) > 0
-     then parse value uid with uid'.' .
+  then parse value uid with uid'.' .
   if right(uid,1) = '*'
   then  tuid = left(uid,length(uid)-1)
   else tuid = uid
@@ -385,9 +424,9 @@ Get_User_Name:
   return name
 
   /* ------------------------------------------------------ *
-   | Get Other User by looking in the JOBs JESMSGLG for the |
-   | ICH70001I message for the userid                       |
-   * ------------------------------------------------------ */
+  | Get Other User by looking in the JOBs JESMSGLG for the |
+  | ICH70001I message for the userid                       |
+  * ------------------------------------------------------ */
 Get_Other_User_Name:
   x = isfcalls('on')
   isfsysname = '*'
@@ -402,12 +441,12 @@ Get_Other_User_Name:
     if right(j_dsname.id,9) /= '.JESMSGLG' then iterate
     Address SDSF "ISFBROWSE ST TOKEN('"j_token.id"') (verbose"
     do isfl = isfline.0 to 1 by -1
-       if pos('ICH70001I',isfline.isfl) > 0 then do
-          return word(isfline.isfl,4)
-          end
-       end
-    return userid
+      if pos('ICH70001I',isfline.isfl) > 0 then do
+        return word(isfline.isfl,4)
+      end
     end
+    return userid
+  end
   x = isfcalls('off')
   return userid
 

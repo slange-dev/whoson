@@ -365,17 +365,25 @@ Do_Help:
   r.7 = '                V       use ISPF View'
   r.8 = '                Q       queue results in the TSO Stack'
   r.9 = '                ?       display this help information'
-  r.10 = ' '
-  r.11 = ' \ is a required separator (in case of a null option)'
+  r.10 = '    If running under the shell then any non-blank will'
+  r.11 = '    use less to display the results.'
   r.12 = ' '
-  r.13 = ' prefix is a TSO User ID prefix to limit the report.'
-  r.14 = '        e.g. SPL'
-  r.15 = ' filter is a string to find in the userid.'
-  r.16 = '        e.g. *L or L*'
-  r.17 = ' '
-  r.18 = 'Dependencies:   SDSF REXX'
-  r.0 = 18
+  r.13 = ' \ is a required separator (in case of a null option)'
+  r.14 = ' '
+  r.15 = ' prefix is a TSO User ID prefix to limit the report.'
+  r.16 = '        e.g. SPL'
+  r.17 = ' filter is a string to find in the userid.'
+  r.18 = '        e.g. *L or L*'
+  r.19 = ' '
+  r.20 = 'Dependencies:   SDSF REXX'
+  r.21 = '                RACF LU authority'
+  r.22 = '                less (shell command)'
+  r.0 = 22
 
+  if address() = 'SH' then do
+     option = '*'
+     call view_stem
+     end
   opt =  'Browse'
   if sysvar('sysispf') = 'ACTIVE'
   then if sysvar('sysenv') = 'FORE'
