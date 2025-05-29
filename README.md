@@ -32,6 +32,7 @@ IBM-1047 (`chtag -tc 1047`).
 
    * SDSF REXX
    * RACF LU command
+   * less (shell command)
 
 ### Notes
 If the user is not authorized to issue the RACF `lu` command for the
